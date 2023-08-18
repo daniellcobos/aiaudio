@@ -34,7 +34,7 @@ app.register_blueprint(auth.bp)
 @app.route('/')
 @login_required
 def index():
-    print(torch.cuda.is_available())
+
     return render_template('index.html')
 
 
@@ -42,7 +42,7 @@ def index():
 @login_required
 def uploader():
     torch.cuda.init()
-    device = "cuda"
+    device = "cpu"
     if request.method == 'POST':
         mpath = path.join(app.root_path, 'static', 'uploads',str(session['Cliente']))
         if not os.path.exists(mpath):
@@ -81,8 +81,8 @@ def uploader():
 
         print(result["text"])
         transfile = path.join(mpath,nombre +".txt")
-        with open(transfile, 'w+') as f:
-            f.write(result)
+        with open(transfile, 'w+', encoding="utf-8") as f:
+            f.write(result["text"])
 
         formatear_texto(transfile)
 
@@ -91,7 +91,7 @@ def uploader():
    
 def formatear_texto(transfile):
     # The file is read and its data is stored
-    data = open(transfile, 'r').read()
+    data = open(transfile, 'r',encoding="utf-8").read()
     
     data = data.replace('?', '?\n')
     data = data.replace('.', '.\n')
@@ -102,7 +102,7 @@ def formatear_texto(transfile):
     fdir = path.dirname(transfile)
     ffile = "Formato_" + path.basename(transfile)
     frpath = path.join(fdir,ffile)
-    with open(frpath, 'w+') as f:
+    with open(frpath, 'w+',encoding="utf-8") as f:
         f.write(data)    
 
 
