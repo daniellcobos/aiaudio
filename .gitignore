@@ -1,3 +1,5 @@
 .env
 *.mkv
 *.mp3
+*.mp4
+config.py

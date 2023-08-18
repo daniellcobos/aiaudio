@@ -1,47 +1,62 @@
-from flask import Flask, render_template,jsonify,request
+from flask import Flask, render_template,jsonify,request,session
 from flask_cors import CORS
 import requests,openai,os
-from dotenv.main import load_dotenv
-from random import randrange
 
+from random import randrange
+from os import path
 import os
 #import magic
 import urllib.request
 from flask import Flask, flash, request, redirect, render_template, jsonify
 from werkzeug.utils import secure_filename
-from os import path
+from oauth import oauth
+from sqla import sqla
+from login import login_manager
 import whisper
-
+from flask_login import login_required
+import auth as auth
+import config
+import torch
 
 app = Flask(__name__, static_url_path = '/static')
 CORS(app)
 
-load_dotenv()
 
-API = os.environ.get('OPENAI_API_KEY')
+app.config.from_object(config.config['development'])
+
+
+oauth.init_app(app)
+sqla.init_app(app)
+login_manager.init_app(app)
+app.register_blueprint(auth.bp)
+
 
 @app.route('/')
+@login_required
 def index():
+    print(torch.cuda.is_available())
     return render_template('index.html')
 
 
 @app.route('/uploader', methods = ['GET', 'POST'])
+@login_required
 def uploader():
-    fpath = path.join(app.root_path, 'static', 'uploads')
-    if not os.path.exists(fpath):
-        os.makedirs(fpath)
+    torch.cuda.init()
+    device = "cuda"
     if request.method == 'POST':
+        mpath = path.join(app.root_path, 'static', 'uploads',str(session['Cliente']))
+        if not os.path.exists(mpath):
+               os.makedirs(mpath)
         file = request.files['archivo']
         filename = secure_filename(file.filename)
-        print(filename)
-        fpath = path.join(app.root_path, 'static', 'uploads',filename)
+        fpath = path.join(mpath,filename)
         file.save(fpath)
 
         nombre = file.filename.split('.')[0]
-        tipo = file.filename.split('.')[1]
+        tipo = file.filename.split('.')[-1]
+        print(tipo)
         sonido = nombre + ".mp3"
-        spath = path.join(app.root_path, 'static', 'uploads',sonido)
-
+        spath = path.join(mpath, sonido)
 
 
         if ( tipo != "mp3" ):
@@ -54,29 +69,29 @@ def uploader():
             audio = movie.audio
 
             #Export the Audio
-            print(spath)
             audio.write_audiofile(spath)
 
 
 
 
-
-        model = whisper.load_model("large")
-        print(spath)
+        print("cargando modelo")
+        model = whisper.load_model("small").to(device)
+        print("transcribiendo")
         result = model.transcribe(spath)
+
         print(result["text"])
+        transfile = path.join(mpath,nombre +".txt")
+        with open(transfile, 'w+') as f:
+            f.write(result)
 
-        with open('Transcripcion.txt', 'w') as f:
-            f.write(result["text"])
-
-        formatear_texto()
+        formatear_texto(transfile)
 
 
         return 'File uploaded and proceed successfully'
    
-def formatear_texto():
+def formatear_texto(transfile):
     # The file is read and its data is stored
-    data = open('Transcripcion.txt', 'r').read()
+    data = open(transfile, 'r').read()
     
     data = data.replace('?', '?\n')
     data = data.replace('.', '.\n')
@@ -84,8 +99,10 @@ def formatear_texto():
     # Displaying the resultant data
     print(data)    
 
-
-    with open('_Transcripcion.txt', 'w') as f:
+    fdir = path.dirname(transfile)
+    ffile = "Formato_" + path.basename(transfile)
+    frpath = path.join(fdir,ffile)
+    with open(frpath, 'w+') as f:
         f.write(data)    
 
 
