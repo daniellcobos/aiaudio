@@ -47,47 +47,47 @@ def uploader():
         mpath = path.join(app.root_path, 'static', 'uploads',str(session['Cliente']))
         if not os.path.exists(mpath):
                os.makedirs(mpath)
-        file = request.files['archivo']
-        filename = secure_filename(file.filename)
-        fpath = path.join(mpath,filename)
-        file.save(fpath)
+        uploaded_files = request.files.getlist("archivo")
+        for file in uploaded_files:
+            print("Cargando" + file.filename)
+            filename = secure_filename(file.filename)
+            fpath = path.join(mpath,filename)
+            file.save(fpath)
 
-        nombre = file.filename.split('.')[0]
-        tipo = file.filename.split('.')[-1]
-        print(tipo)
-        sonido = nombre + ".mp3"
-        spath = path.join(mpath, sonido)
+            nombre = file.filename.split('.')[0]
+            tipo = file.filename.split('.')[-1]
+            print(tipo)
+            sonido = nombre + ".mp3"
+            spath = path.join(mpath, sonido)
+            if ( tipo != "mp3" ):
 
+                import moviepy.editor
+                #Load the Video
+                movie = moviepy.editor.VideoFileClip(fpath)
 
-        if ( tipo != "mp3" ):
+                #Extract the Audio
+                audio = movie.audio
 
-            import moviepy.editor
-            #Load the Video
-            movie = moviepy.editor.VideoFileClip(fpath)
-
-            #Extract the Audio
-            audio = movie.audio
-
-            #Export the Audio
-            audio.write_audiofile(spath)
-
-
+                #Export the Audio
+                audio.write_audiofile(spath)
 
 
-        print("cargando modelo")
-        model = whisper.load_model("small").to(device)
-        print("transcribiendo")
-        result = model.transcribe(spath)
-
-        print(result["text"])
-        transfile = path.join(mpath,nombre +".txt")
-        with open(transfile, 'w+', encoding="utf-8") as f:
-            f.write(result["text"])
-
-        formatear_texto(transfile)
 
 
-        return 'File uploaded and proceed successfully'
+            print("cargando modelo")
+            model = whisper.load_model("small").to(device)
+            print("transcribiendo")
+            result = model.transcribe(spath)
+
+            print(result["text"])
+            transfile = path.join(mpath,nombre +".txt")
+            with open(transfile, 'w+', encoding="utf-8") as f:
+                f.write(result["text"])
+
+            formatear_texto(transfile)
+
+
+        return 'Files uploaded and proceed successfully'
    
 def formatear_texto(transfile):
     # The file is read and its data is stored
