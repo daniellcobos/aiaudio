@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FocusIA</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<style>
+    .upload-area {
+        border: 2px dashed #92b0b3;
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .upload-area:hover { background: #e9ecef; }
+    .upload-area input[type="file"] {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0; left: 0;
+        opacity: 0;
+        cursor: pointer;
+    }
+    #overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0,0,0,0.65);
+        z-index: 9999;
+        text-align: center;
+        padding-top: 180px;
+    }
+    #resultado-container { display: none; }
+    #resultado-texto {
+        font-family: monospace;
+        font-size: 0.9rem;
+        resize: vertical;
+    }
+</style>
+
+<!-- Overlay de progreso -->
+<div id="overlay">
+    <div class="spinner-border text-light" style="width:4rem;height:4rem;" role="status"></div>
+    <p class="text-white mt-4" style="font-size:1.1rem;">
+        Procesando archivo...<br>
+        <small class="text-white-50">Transcripción + análisis con IA. Puede demorar varios minutos.</small>
+    </p>
+</div>
+
+<body>
+
+    <nav class="navbar navbar-light bg-white border-bottom mb-4">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <img src="https://synapsis-rs.com/static/img/logo.png"
+                     style="width:140px;" alt="Synapsis Logo" class="mr-3">
+                <span class="font-weight-semibold text-dark">Focus Group Services with AI</span>
+            </a>
+            <a href="/auth/logout" class="btn btn-outline-secondary btn-sm">Transcribir nuevo archivo</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+
+                <!-- Tarjeta de subida -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <strong>Subir archivo de focus group</strong>
+                    </div>
+                    <div class="card-body">
+                        <form id="upload-form" enctype="multipart/form-data">
+                            <div class="upload-area position-relative mb-3">
+                                <input type="file" name="archivo" id="file_upload" accept=".mp3,.mp4,.wav,.m4a,.ogg,.webm,.mkv,.avi,.mov">
+                                <div id="upload-label">
+                                    <p class="mb-1 text-muted"><strong>Arrastrá un archivo o hacé clic para seleccionar</strong></p>
+                                    <small class="text-muted">Formatos: mp3, mp4, wav, m4a, ogg, webm, mkv, avi, mov</small>
+                                </div>
+                            </div>
+                            <div id="file-name" class="text-muted small mb-3" style="display:none;"></div>
+                            <button type="submit" class="btn btn-primary btn-block">Transcribir</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Área de resultado -->
+                <div id="resultado-container" class="card shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <strong>Resultados — <span id="resultado-nombre" class="text-muted font-weight-normal"></span></strong>
+                        <div>
+                            <button onclick="copiarTexto()" class="btn btn-sm btn-outline-secondary mr-2">Copiar</button>
+                            <button onclick="descargarTexto()" class="btn btn-sm btn-outline-primary">Descargar .txt</button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <!-- Pestañas -->
+                        <ul class="nav nav-tabs px-3 pt-2" id="resultado-tabs">
+                            <li class="nav-item">
+                                <a class="nav-link active" data-toggle="tab" href="#tab-transcripcion">Transcripción</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-toggle="tab" href="#tab-resumen">Resumen</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-toggle="tab" href="#tab-temas">Temas clave</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-toggle="tab" href="#tab-sentimiento">Sentimiento</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-toggle="tab" href="#tab-participantes">Participantes</a>
+                            </li>
+                        </ul>
+                        <div class="tab-content p-3">
+                            <div class="tab-pane fade show active" id="tab-transcripcion">
+                                <textarea id="resultado-texto" class="form-control" rows="20" readonly></textarea>
+                            </div>
+                            <div class="tab-pane fade" id="tab-resumen">
+                                <div id="resultado-resumen" class="p-2" style="white-space:pre-wrap;"></div>
+                            </div>
+                            <div class="tab-pane fade" id="tab-temas">
+                                <div id="resultado-temas" class="p-2" style="white-space:pre-wrap;"></div>
+                            </div>
+                            <div class="tab-pane fade" id="tab-sentimiento">
+                                <div id="resultado-sentimiento" class="p-2" style="white-space:pre-wrap;"></div>
+                            </div>
+                            <div class="tab-pane fade" id="tab-participantes">
+                                <textarea id="resultado-participantes" class="form-control" rows="20" readonly></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+</body>
+
+<script>
+    // Mostrar nombre del archivo seleccionado
+    $('#file_upload').on('change', function() {
+        var file = this.files[0];
+        if (file) {
+            $('#file-name').text('Archivo seleccionado: ' + file.name).show();
+        }
+    });
+
+    // Envío por AJAX
+    $('#upload-form').on('submit', function(e) {
+        e.preventDefault();
+
+        var files = document.getElementById('file_upload').files;
+        if (files.length === 0) {
+            Swal.fire({ icon: 'warning', title: 'Sin archivo', text: 'Seleccioná un archivo antes de continuar.' });
+            return;
+        }
+
+        var formData = new FormData(this);
+        $('#overlay').show();
+
+        $.ajax({
+            url: '/uploader',
+            data: formData,
+            processData: false,
+            contentType: false,
+            type: 'POST',
+            timeout: 1800000, // 30 minutos máximo
+            success: function(response) {
+                $('#overlay').hide();
+                if (response.transcripcion) {
+                    $('#resultado-nombre').text(response.nombre);
+                    $('#resultado-texto').val(response.transcripcion);
+                    $('#resultado-resumen').text(response.resumen);
+                    $('#resultado-temas').text(response.temas);
+                    $('#resultado-sentimiento').text(response.sentimiento);
+                    $('#resultado-participantes').val(response.participantes);
+                    $('#resultado-container').show();
+                    $('html, body').animate({ scrollTop: $('#resultado-container').offset().top - 20 }, 500);
+                    Swal.fire({ icon: 'success', title: 'Listo', text: 'Transcripción y análisis completados.', timer: 2500, showConfirmButton: false });
+                }
+            },
+            error: function(xhr) {
+                $('#overlay').hide();
+                var msg = 'Ocurrió un error inesperado durante la transcripción.';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    msg = xhr.responseJSON.error;
+                }
+                Swal.fire({ icon: 'error', title: 'Error', text: msg });
+            }
+        });
+    });
+
+    function copiarTexto() {
+        var textarea = document.getElementById('resultado-texto');
+        textarea.select();
+        document.execCommand('copy');
+        Swal.fire({ icon: 'success', title: 'Copiado al portapapeles', timer: 1200, showConfirmButton: false });
+    }
+
+    function descargarTexto() {
+        var texto = document.getElementById('resultado-texto').value;
+        var nombre = document.getElementById('resultado-nombre').textContent || 'transcripcion';
+        var blob = new Blob([texto], { type: 'text/plain;charset=utf-8' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = nombre + '.txt';
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }
+</script>
+
+</html>
