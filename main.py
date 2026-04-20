@@ -50,15 +50,12 @@ def extraer_audio_mp3(filepath):
 
     mp3_path = os.path.splitext(filepath)[0] + '_audio.mp3'
     logger.info("[1/3] Extrayendo audio (%.1f MB)...", os.path.getsize(filepath) / 1024 / 1024)
-    """los parentesis aqui son para continuar la cadena de comandos de ffmpeg sin necesidad de usar '\' al final de cada linea, 
-    lo que mejora la legibilidad y evita errores de sintaxis. 
-    Es una forma común en Python de escribir comandos largos o encadenados de manera clara."""
     (
         ffmpeg
-        .input(filepath) # toma el archivo de video como entrada con ffmpeg
-        .output(mp3_path, acodec='libmp3lame', audio_bitrate='64k', ac=1, vn=None) #Lo convierte a MP3 con codec libmp3lame, bitrate de 64k, mono (ac=1), sin video (vn=None)
-        .overwrite_output() # sobreescribe el archivo de salida si ya existe
-        .run(quiet=True) # ejecuta el comando en silencio
+        .input(filepath)
+        .output(mp3_path, acodec='libmp3lame', audio_bitrate='64k', ac=1, vn=None)
+        .overwrite_output()
+        .run(quiet=True)
     )
     logger.info("      Audio extraido: %.1f MB", os.path.getsize(mp3_path) / 1024 / 1024)
     return mp3_path, True
@@ -82,7 +79,6 @@ def split_audio_chunks(filepath):
     logger.info("      Dividiendo en %d fragmentos...", num_chunks)
     chunks = []
 
-    """ este bloque divide el audio en fragmentos (chunks)"""
     for i in range(num_chunks):
         chunk_path = f"{base}_chunk{i + 1}.mp3"
         (
@@ -122,13 +118,9 @@ def transcribir(filepath):
     chunks = []
 
     try:
-        # Paso 1: extraer audio si es video
         audio_path, es_video = extraer_audio_mp3(filepath)
-
-        # Paso 2: dividir si supera el límite
         chunks = split_audio_chunks(audio_path)
 
-        # Paso 3: transcribir todos los fragmentos en paralelo
         logger.info("[3/3] Transcribiendo %d fragmento(s) en paralelo...", len(chunks))
         resultados = [None] * len(chunks)
 
@@ -145,7 +137,6 @@ def transcribir(filepath):
         return ' '.join(resultados)
 
     finally:
-        # Limpiar siempre los archivos temporales, incluso si hubo un error
         for chunk in chunks:
             if chunk != audio_path and os.path.exists(chunk):
                 os.remove(chunk)
@@ -287,7 +278,7 @@ def uploader():
             "temas": analisis.get("temas", ""),
             "sentimiento": analisis.get("sentimiento", ""),
             "participantes": analisis.get("participantes", ""),
-        })    
+        })
 
 
 
